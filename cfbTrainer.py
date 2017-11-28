@@ -1,5 +1,4 @@
 
-
 ##http://scikit-learn.org/stable/modules/sgd.html
 
 from sklearn.linear_model import Ridge
@@ -12,11 +11,10 @@ from bs4 import Comment
 reloadData = False
 saveFiles = True
 year = 2017
-#teamList = ['alabama','notre-dame','penn-state','florida-state','texas','purdue','vanderbilt','syracuse','central-florida','oregon','boston-college','michigan','southern-california','stanford','washington','oregon-state','miami-oh','miami-fl','wisconsin','michigan-state','rutgers','ohio-state','oklahoma','iowa-state','tennessee','georgia']
 teamList = []
 
 doPower5 = True
-doAll = True
+doAll = False
 
 verbose = 0
 
@@ -71,6 +69,8 @@ if reloadData:
             parsed = soup.find_all("td")
             passTotal = int(parsed[len(parsed)-18].string)
             rushTotal = int(parsed[len(parsed)-15].string)
+            firstDowns = int(parsed[len(parsed)-6].string)
+            penalties = int(parsed[len(parsed)-4].string)
             turnTotal = int(parsed[len(parsed)-1].string)
             
             record = unicode(soup.find_all("p")[2])
@@ -87,10 +87,10 @@ if reloadData:
             parsed = comments.find_all("td")
             defTotal = int(parsed[len(parsed)-18].string) + int(parsed[len(parsed)-15].string)
             turnTotal = int(parsed[len(parsed)-1].string) - turnTotal
-            teams.update({team : [passTotal, rushTotal, defTotal, turnTotal]})
+            teams.update({team : [passTotal, rushTotal, firstDowns, penalties, defTotal, turnTotal]})
             if saveFiles:
                   file = open('{year}/{school}.txt'.format(year=year, school=team),'w')
-                  fileContent = [passTotal,rushTotal,defTotal,turnTotal,winPct]
+                  fileContent = [passTotal,rushTotal,firstDowns,penalties,defTotal,turnTotal,winPct]
                   json.dump(fileContent,file)
             if verbose:    
                   print " passTotal: ",passTotal, " rushTotal: ", rushTotal, " defTotal: ", defTotal, " turnTotal: ", turnTotal
@@ -99,8 +99,9 @@ else:
       for team in teamList:
             file = open('{year}/{school}.txt'.format(year=year, school=team),'r')
             fileContent = json.load(file)
-            teamData = [fileContent[i] for i in range(0,4)]
-            win_pct.update({team: fileContent[len(teamData)]})
+            #teamData = [fileContent[i] for i in range(0,6)]
+            teamData = [fileContent[0], fileContent[1], fileContent[4], fileContent[5]]
+            win_pct.update({team: fileContent[6]})
             teams.update({team : teamData})
             if verbose:
                   print "team: ",team, " passTotal: ",teamData[0], " rushTotal: ", teamData[1], " defTotal: ", teamData[2], " turnTotal: ", teamData[3]
@@ -110,7 +111,7 @@ else:
 Ole_Miss = [3941, 1609, 5514, -5]#, 0.580] #actual .500
 TCU = [2856, 2209, 3810, 6]#, 0.529] #actual 0.833
 Penn_St = [3430, 2009, 3952, 14]#, 0.585] #actual 0.833
-Hypothetical = [4100,2200,2100,-10]
+Hypothetical = [4100,2200, 2100,-10]
 
 #transform dict to 2D array
 teamArr = []
@@ -123,10 +124,28 @@ for team in teams:
 clf = Ridge(alpha=1.0, normalize="True")
 clf.fit(X=teamArr, y=winPctArr)
 
-predictPct = clf.predict([Ole_Miss,TCU,Penn_St,Hypothetical])
+predictPct = clf.predict(teamArr)
+#iteam=0
+#for team in teams:
+#      print teamArr[iteam], " ", winPctArr[iteam], " ",predictPct[iteam]
+#      iteam+=1
 
-#spit out predictive behavior
-print "Ole Miss: ", predictPct[0], " TCU: ", predictPct[1], " Penn St: ", predictPct[2], '\n'
-print "Hypothetical: ",predictPct[3]
+#sort by predictive strength
+iteam=0
+sortedTeamDict = {}
+for team in teams:
+      sortedTeamDict.update({team : predictPct[iteam]})
+      iteam+=1
+sortedTeams = sorted(sortedTeamDict, key=lambda key: sortedTeamDict[key], reverse=True)
+
+#print out
+iteam=0
+for team in teams:
+      print iteam+1, " ", sortedTeams[iteam], " (", '{0:.4f}'.format(sortedTeamDict[sortedTeams[iteam]]),")"
+      iteam+=1
+
+#spit out debug predictive behavior
+print "Ole Miss: ", sortedTeamDict['mississippi'], " TCU: ", sortedTeamDict['texas-christian'], " Penn St: ", sortedTeamDict['penn-state'], '\n'
+#print "Hypothetical: ",predictPct[3]
 
 
