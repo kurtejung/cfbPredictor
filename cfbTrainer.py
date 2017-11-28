@@ -8,15 +8,15 @@ from bs4 import Comment
 
 #### Global Parameters ###
 
-reloadData = False
+reloadData = True
 saveFiles = True
-year = 2017
+year = 2016
 teamList = []
 
 doPower5 = True
 doAll = False
 
-verbose = 0
+verbose = 1
 
 ###########################
 
@@ -106,12 +106,6 @@ else:
             if verbose:
                   print "team: ",team, " passTotal: ",teamData[0], " rushTotal: ", teamData[1], " defTotal: ", teamData[2], " turnTotal: ", teamData[3]
                   print "win pct: ",fileContent[len(teamData)]
-
-##test teams
-Ole_Miss = [3941, 1609, 5514, -5]#, 0.580] #actual .500
-TCU = [2856, 2209, 3810, 6]#, 0.529] #actual 0.833
-Penn_St = [3430, 2009, 3952, 14]#, 0.585] #actual 0.833
-Hypothetical = [4100,2200, 2100,-10]
 
 #transform dict to 2D array
 teamArr = []
