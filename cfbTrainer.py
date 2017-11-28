@@ -12,7 +12,12 @@ from bs4 import Comment
 reloadData = False
 saveFiles = True
 year = 2017
-teamList = ['alabama','notre-dame','penn-state','florida-state','texas','purdue','vanderbilt','syracuse','central-florida','oregon','boston-college','michigan','southern-california','stanford','washington','oregon-state','miami-oh','miami-fl','wisconsin','michigan-state','rutgers','ohio-state','oklahoma','iowa-state','tennessee','georgia']
+#teamList = ['alabama','notre-dame','penn-state','florida-state','texas','purdue','vanderbilt','syracuse','central-florida','oregon','boston-college','michigan','southern-california','stanford','washington','oregon-state','miami-oh','miami-fl','wisconsin','michigan-state','rutgers','ohio-state','oklahoma','iowa-state','tennessee','georgia']
+teamList = []
+
+doPower5 = True
+doAll = True
+
 verbose = 0
 
 ###########################
@@ -20,8 +25,48 @@ verbose = 0
 teams = {}
 win_pct = {}
 
+##hardcode all teams by conference for easy loading
+teamListAAC = {'central-florida','south-florida','temple','east-carolina','cincinnati','connecticut','memphis','houston','navy','southern-methodist','tulane','tulsa'}
+teamListACC = {'clemson','north-carolina-state','wake-forest','boston-college','louisville','florida-state','syracuse','miami-fl','virginia-tech','georgia-tech','pittsburgh','virginia','duke','north-carolina'}
+teamListBigTwelve = {'oklahoma','texas-christian','oklahoma-state','texas','west-virginia','kansas-state','iowa-state','texas-tech','baylor','kansas'}
+teamListBigTen = {'ohio-state','penn-state','michigan-state','michigan','rutgers','maryland','indiana','wisconsin','northwestern','purdue','iowa','nebraska','minnesota','illinois'}
+teamListCUSA = {'florida-atlantic','florida-international','marshall','western-kentucky','middle-tennessee-state','old-dominion','charlotte','north-texas','alabama-birmingham','southern-mississippi','louisiana-tech','texas-san-antonio','rice','texas-el-paso'}
+teamListInd = {'massachusetts','notre-dame','army','brigham-young'}
+teamListMAC = {'akron','ohio','miami-oh','buffalo','bowling-green-state','kent-state','toledo','central-michigan','northern-illinois','western-michigan','eastern-michigan','ball-state'}
+teamListMWC = {'boise-state','wyoming','colorado-state','air-force','utah-state','new-mexico','fresno-state','san-diego-state','nevada-las-vegas','nevada','hawaii','san-jose-state'}
+teamListPACTwelve = {'stanford','washington','washington-state','oregon','california','oregon-state','southern-california','arizona-state','arizona','ucla','utah','colorado'}
+teamListSEC = {'georgia','south-carolina','kentucky','missouri','florida','vanderbilt','tennessee','auburn','alabama','louisiana-state','mississippi-state','texas-am','mississippi','arkansas'}
+teamListSunBelt = {'troy','arkansas-state','appalachian-state','georgia-state','louisiana-lafayette','louisiana-monroe','new-mexico-state','south-alabama','idaho','georgia-southern','coastal-carolina','texas-state'}
+
+if doAll:
+      doPower5 = True
+      for team in teamListAAC: teamList.append(team)
+      for team in teamListCUSA: teamList.append(team)
+      for team in teamListMAC: teamList.append(team)
+      for team in teamListMWC: teamList.append(team)
+      for team in teamListSunBelt: teamList.append(team)
+      teamList.append('massachusetts')
+      teamList.append('army')
+      teamList.append('brigham-young')
+
+if doPower5:
+      for team in teamListACC: teamList.append(team)
+      for team in teamListBigTen: teamList.append(team)
+      for team in teamListBigTwelve: teamList.append(team)
+      for team in teamListPACTwelve: teamList.append(team)
+      for team in teamListSEC: teamList.append(team)
+      teamList.append('notre-dame')
+
+if verbose > 1:
+      iteam=0
+      for team in teamList:
+            print " loading team ",teamList[iteam]
+            iteam+=1
+
 if reloadData:
       for team in teamList:
+            if verbose:
+                  print "team: ",team
             soup = BeautifulSoup(urllib2.urlopen("https://www.sports-reference.com/cfb/schools/{school}/{year}/gamelog/".format(school=team, year=year)).read(),'lxml')
             parsed = soup.find_all("td")
             passTotal = int(parsed[len(parsed)-18].string)
@@ -33,7 +78,8 @@ if reloadData:
             wins = int(pattern.findall(record)[0])
             losses = int(pattern.findall(record)[1])
             winPct = float(wins)/float(wins+losses)
-            print "wins: ",wins, " losses: ",losses, " win pct: ",winPct
+            if verbose:
+                  print "wins: ",wins, " losses: ",losses, " win pct: ",winPct
             win_pct.update({team: winPct})
             
             #the defensive stats are protected in a comment
@@ -47,7 +93,7 @@ if reloadData:
                   fileContent = [passTotal,rushTotal,defTotal,turnTotal,winPct]
                   json.dump(fileContent,file)
             if verbose:    
-                  print "team: ",team, " passTotal: ",passTotal, " rushTotal: ", rushTotal, " defTotal: ", defTotal, " turnTotal: ", turnTotal
+                  print " passTotal: ",passTotal, " rushTotal: ", rushTotal, " defTotal: ", defTotal, " turnTotal: ", turnTotal
 	      
 else:
       for team in teamList:
@@ -60,41 +106,11 @@ else:
                   print "team: ",team, " passTotal: ",teamData[0], " rushTotal: ", teamData[1], " defTotal: ", teamData[2], " turnTotal: ", teamData[3]
                   print "win pct: ",fileContent[len(teamData)]
 
-#start with 11 teams from this year, hard-coded data
-#passing yards, rushing yards, defensive yards allowed, turnover margin, win pct of teams faced
-'''
-teams = {}
-teams.update({'Alabama' : [2466, 3182, 3107, 12, 0.608]})
-teams.update({'Notre_Dame' : [2110, 3349, 4400, 5, 0.677]})
-teams.update({'Florida_St' : [2114, 1505, 3744, -5, 0.648]})
-teams.update({'Texas' : [3198, 1702, 4367, -5, 0.519]})
-teams.update({'Purdue' : [2874, 1811, 4468, 3, 0.553]})
-teams.update({'Vanderbilt' : [2923, 1291, 4742, -5, 0.583]})
-teams.update({'Syracuse' : [3538, 1936, 5328, -12, 0.646]})
-teams.update({'UCF' : [3577, 2188, 4389, 17, 0.573]})
-teams.update({'Oregon' : [2236, 3216, 4318, 1, 0.573]})
-teams.update({'Boston_College' : [1954, 2690, 4775, 8, 0.618]})
-teams.update({'Michigan' : [2023, 2236, 3223, -2, 0.565]})
-
-win_pct = {'alabama' : 0.9167, 
-'notre-dame' : 0.7500,
-'penn-state' : 0.7500,
-'florida-state' : 0.4550,
-'texas' : 0.500,
-'purdue' :  0.500,
-'vanderbilt' : 0.417,
-'syracuse' : 0.333,
-'central-florida' :  1.000,
-'oregon' :  0.583,
-'boston-college' : 0.583,
-'michigan' :  0.667
-}
-'''
-
 ##test teams
 Ole_Miss = [3941, 1609, 5514, -5]#, 0.580] #actual .500
 TCU = [2856, 2209, 3810, 6]#, 0.529] #actual 0.833
 Penn_St = [3430, 2009, 3952, 14]#, 0.585] #actual 0.833
+Hypothetical = [4100,2200,2100,-10]
 
 #transform dict to 2D array
 teamArr = []
@@ -103,13 +119,14 @@ for team in teams:
 	teamArr.append(teams[team])
 	winPctArr.append(win_pct[team])
 
+#heavy lifting done here
 clf = Ridge(alpha=1.0, normalize="True")
-#print teamArr
-#print win_pct
 clf.fit(X=teamArr, y=winPctArr)
 
-predictPct = clf.predict([Ole_Miss,TCU,Penn_St])
+predictPct = clf.predict([Ole_Miss,TCU,Penn_St,Hypothetical])
 
+#spit out predictive behavior
 print "Ole Miss: ", predictPct[0], " TCU: ", predictPct[1], " Penn St: ", predictPct[2], '\n'
+print "Hypothetical: ",predictPct[3]
 
 
