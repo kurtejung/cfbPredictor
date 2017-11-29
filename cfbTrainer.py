@@ -1,16 +1,16 @@
 
 ##http://scikit-learn.org/stable/modules/sgd.html
 
-from sklearn.linear_model import Ridge
+from sklearn.linear_model import Ridge, SGDRegressor
 import urllib2, re, json
 from bs4 import BeautifulSoup
 from bs4 import Comment
 
 #### Global Parameters ###
 
-reloadData = True
+reloadData = False
 saveFiles = True
-year = 2016
+year = 2017
 teamList = []
 
 doPower5 = True
@@ -24,17 +24,17 @@ teams = {}
 win_pct = {}
 
 ##hardcode all teams by conference for easy loading
-teamListAAC = {'central-florida','south-florida','temple','east-carolina','cincinnati','connecticut','memphis','houston','navy','southern-methodist','tulane','tulsa'}
-teamListACC = {'clemson','north-carolina-state','wake-forest','boston-college','louisville','florida-state','syracuse','miami-fl','virginia-tech','georgia-tech','pittsburgh','virginia','duke','north-carolina'}
-teamListBigTwelve = {'oklahoma','texas-christian','oklahoma-state','texas','west-virginia','kansas-state','iowa-state','texas-tech','baylor','kansas'}
-teamListBigTen = {'ohio-state','penn-state','michigan-state','michigan','rutgers','maryland','indiana','wisconsin','northwestern','purdue','iowa','nebraska','minnesota','illinois'}
-teamListCUSA = {'florida-atlantic','florida-international','marshall','western-kentucky','middle-tennessee-state','old-dominion','charlotte','north-texas','alabama-birmingham','southern-mississippi','louisiana-tech','texas-san-antonio','rice','texas-el-paso'}
-teamListInd = {'massachusetts','notre-dame','army','brigham-young'}
-teamListMAC = {'akron','ohio','miami-oh','buffalo','bowling-green-state','kent-state','toledo','central-michigan','northern-illinois','western-michigan','eastern-michigan','ball-state'}
-teamListMWC = {'boise-state','wyoming','colorado-state','air-force','utah-state','new-mexico','fresno-state','san-diego-state','nevada-las-vegas','nevada','hawaii','san-jose-state'}
-teamListPACTwelve = {'stanford','washington','washington-state','oregon','california','oregon-state','southern-california','arizona-state','arizona','ucla','utah','colorado'}
-teamListSEC = {'georgia','south-carolina','kentucky','missouri','florida','vanderbilt','tennessee','auburn','alabama','louisiana-state','mississippi-state','texas-am','mississippi','arkansas'}
-teamListSunBelt = {'troy','arkansas-state','appalachian-state','georgia-state','louisiana-lafayette','louisiana-monroe','new-mexico-state','south-alabama','idaho','georgia-southern','coastal-carolina','texas-state'}
+teamListAAC = ['central-florida','south-florida','temple','east-carolina','cincinnati','connecticut','memphis','houston','navy','southern-methodist','tulane','tulsa']
+teamListACC = ['clemson','north-carolina-state','wake-forest','boston-college','louisville','florida-state','syracuse','miami-fl','virginia-tech','georgia-tech','pittsburgh','virginia','duke','north-carolina']
+teamListBigTwelve = ['oklahoma','texas-christian','oklahoma-state','texas','west-virginia','kansas-state','iowa-state','texas-tech','baylor','kansas']
+teamListBigTen = ['ohio-state','penn-state','michigan-state','michigan','rutgers','maryland','indiana','wisconsin','northwestern','purdue','iowa','nebraska','minnesota','illinois']
+teamListCUSA = ['florida-atlantic','florida-international','marshall','western-kentucky','middle-tennessee-state','old-dominion','charlotte','north-texas','alabama-birmingham','southern-mississippi','louisiana-tech','texas-san-antonio','rice','texas-el-paso']
+teamListInd = ['massachusetts','notre-dame','army','brigham-young']
+teamListMAC = ['akron','ohio','miami-oh','buffalo','bowling-green-state','kent-state','toledo','central-michigan','northern-illinois','western-michigan','eastern-michigan','ball-state']
+teamListMWC = ['boise-state','wyoming','colorado-state','air-force','utah-state','new-mexico','fresno-state','san-diego-state','nevada-las-vegas','nevada','hawaii','san-jose-state']
+teamListPACTwelve = ['stanford','washington','washington-state','oregon','california','oregon-state','southern-california','arizona-state','arizona','ucla','utah','colorado']
+teamListSEC = ['georgia','south-carolina','kentucky','missouri','florida','vanderbilt','tennessee','auburn','alabama','louisiana-state','mississippi-state','texas-am','mississippi','arkansas']
+teamListSunBelt = ['troy','arkansas-state','appalachian-state','georgia-state','louisiana-lafayette','louisiana-monroe','new-mexico-state','south-alabama','idaho','georgia-southern','coastal-carolina','texas-state']
 
 if doAll:
       doPower5 = True
@@ -115,10 +115,14 @@ for team in teams:
 	winPctArr.append(win_pct[team])
 
 #heavy lifting done here
-clf = Ridge(alpha=1.0, normalize="True")
-clf.fit(X=teamArr, y=winPctArr)
+#clf = Ridge(alpha=1.0, normalize="True")
+clf = SGDRegressor(loss="squared_loss", penalty="l2")
+from sklearn.preprocessing import StandardScaler
+scaler = StandardScaler()
+scaler.fit(teamArr)
+clf.fit(X=scaler.transform(teamArr), y=winPctArr)
 
-predictPct = clf.predict(teamArr)
+predictPct = clf.predict(scaler.transform(teamArr))
 #iteam=0
 #for team in teams:
 #      print teamArr[iteam], " ", winPctArr[iteam], " ",predictPct[iteam]
