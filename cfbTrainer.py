@@ -19,6 +19,8 @@ doAll = True
 
 verbose = 2
 
+writeCSV = True
+
 ###########################
 
 teams = {}
@@ -141,13 +143,16 @@ else:
       for team in teamList:
             file = open('{year}/{school}.txt'.format(year=year, school=team),'r')
             fileContent = json.load(file)
-            #teamData = [fileContent[i] for i in range(0,6)]
-            teamData = [fileContent[0], fileContent[1], fileContent[4], fileContent[5]]
+            teamData = [fileContent[i] for i in range(0,7)]
+      #teamData = [fileContent[0], fileContent[1], fileContent[4], fileContent[5]]
             win_pct.update({team: fileContent[6]})
             opp_win_pct.update({team: fileContent[7]})
+            for i in [0,1,2,5]:
+                  teamData[i]*=(float(fileContent[7])**1.5)
+            teamData[4]/=(float(fileContent[7])/0.1)
             teams.update({team : teamData})
             if verbose:
-                  print "team: ",team, " passTotal: ",teamData[0], " rushTotal: ", teamData[1], " defTotal: ", teamData[2], " turnTotal: ", teamData[3]
+                  print "team: ",team, " passTotal: ",teamData[0], " rushTotal: ", teamData[1], " defTotal: ", teamData[4], " turnTotal: ", teamData[5]
                   print "win pct: ",fileContent[6], " opp win pct: ",fileContent[7]
 
 #transform dict to 2D array
@@ -158,7 +163,7 @@ oppWinPctArr = []
 #key here is to scale the winning percentage by the opponent's winning pct
 for team in teams:
       teamArr.append(teams[team])
-      adjustedWinPct = float(win_pct[team])*float(opp_win_pct[team])
+      adjustedWinPct = float(win_pct[team])
       winPctArr.append(adjustedWinPct)
       oppWinPctArr.append(opp_win_pct[team])
 
@@ -190,8 +195,18 @@ for team in teams:
       print iteam+1, " ", sortedTeams[iteam], " (", '{0:.4f}'.format(sortedTeamDict[sortedTeams[iteam]]),")"
       iteam+=1
 
+if(writeCSV):
+      iteam=0
+      fout = open('ranking_{year}.csv'.format(year=year),'w')
+      fout.write("RANKING, TEAM, MVA SCORE\n")
+      for team in teams:
+            writeString = str(iteam+1)+", "+str(sortedTeams[iteam])+", "+'{0:.4f}'.format(sortedTeamDict[sortedTeams[iteam]])+'\n'
+            fout.write(writeString)
+            iteam+=1
+      
+      
 #spit out debug predictive behavior
-print "Ole Miss: ", sortedTeamDict['mississippi'], " TCU: ", sortedTeamDict['texas-christian'], " Penn St: ", sortedTeamDict['penn-state'], '\n'
+#print "Ole Miss: ", sortedTeamDict['mississippi'], " TCU: ", sortedTeamDict['texas-christian'], " Penn St: ", sortedTeamDict['penn-state'], '\n'
 #print "Hypothetical: ",predictPct[3]
 
 
