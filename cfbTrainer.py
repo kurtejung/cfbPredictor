@@ -2,7 +2,7 @@
 ##http://scikit-learn.org/stable/modules/sgd.html
 
 from sklearn.linear_model import Ridge, SGDRegressor
-import urllib2, re, json
+import urllib2, re, json, difflib
 from bs4 import BeautifulSoup
 from bs4 import Comment
 
@@ -13,15 +13,17 @@ saveFiles = True
 year = 2017
 teamList = []
 
-doPower5 = True
-doAll = False
+doTest = False
+doPower5 = False
+doAll = True
 
-verbose = 1
+verbose = 2
 
 ###########################
 
 teams = {}
 win_pct = {}
+opp_win_pct = {}
 
 ##hardcode all teams by conference for easy loading
 teamListAAC = ['central-florida','south-florida','temple','east-carolina','cincinnati','connecticut','memphis','houston','navy','southern-methodist','tulane','tulsa']
@@ -54,6 +56,9 @@ if doPower5:
       for team in teamListPACTwelve: teamList.append(team)
       for team in teamListSEC: teamList.append(team)
       teamList.append('notre-dame')
+      
+if doTest:
+      teamList.append('notre-dame')
 
 if verbose > 1:
       iteam=0
@@ -62,6 +67,41 @@ if verbose > 1:
             iteam+=1
 
 if reloadData:
+      
+      #now get the opponent win percentage from another site
+      soup2 = BeautifulSoup(urllib2.urlopen("http://www.cpiratings.com/archives/{year}w15_table.html".format(year=year)).read(),'lxml')
+      teamTable = soup2.find_all('table')[0]
+            
+      rows = teamTable.find_all('tr')
+      for row in rows:
+            cols = row.find_all('td')
+            cols = [ele.text.strip() for ele in cols]
+            cols[1] = re.sub("[\(\[].*?[\)\]]","",cols[1]).strip()
+            teamArg = cols[1].lower().replace(" ", "-")
+            if(teamArg=="team"):
+                  continue
+            if(teamArg=="smu"):
+                  teamArg="southern-methodist"
+            if(teamArg=="lsu"):
+                  teamArg="louisiana-state"
+            if(teamArg=="utep"):
+                  teamArg="texas-el-paso"
+            if(teamArg=="texas-st-san-marcos"):
+                  teamArg="texas-state"
+            if(teamArg=="unlv"):
+                  teamArg="nevada-las-vegas"
+            if(teamArg=="tcu"):
+                  teamArg="texas-christian"
+            #print teamArg
+            teamClose = difflib.get_close_matches(teamArg,teamList,1,0.7)
+            if(len(teamClose)==0):
+                  print "cannot find any team matches for ",teamArg,"!"
+                  continue
+            teamClosest=teamClose[0]
+            opp_win_pct.update({teamClosest: cols[13]})
+            #print "opp win pct for ", teamClosest, "( ",teamArg," ) is ", cols[13]
+      
+      
       for team in teamList:
             if verbose:
                   print "team: ",team
@@ -83,17 +123,19 @@ if reloadData:
             win_pct.update({team: winPct})
             
             #the defensive stats are protected in a comment
-            comments = BeautifulSoup(soup.find_all(string=lambda text:isinstance(text,Comment))[17].string,"lxml")
+            comments = BeautifulSoup(soup.find_all(string=lambda text:isinstance(text,Comment))[18].string,"lxml")
             parsed = comments.find_all("td")
             defTotal = int(parsed[len(parsed)-18].string) + int(parsed[len(parsed)-15].string)
             turnTotal = int(parsed[len(parsed)-1].string) - turnTotal
-            teams.update({team : [passTotal, rushTotal, firstDowns, penalties, defTotal, turnTotal]})
+            
+            teams.update({team : [passTotal, rushTotal, firstDowns, penalties, defTotal, turnTotal, opp_win_pct[team]]})
+            
             if saveFiles:
                   file = open('{year}/{school}.txt'.format(year=year, school=team),'w')
-                  fileContent = [passTotal,rushTotal,firstDowns,penalties,defTotal,turnTotal,winPct]
+                  fileContent = [passTotal,rushTotal,firstDowns,penalties,defTotal,turnTotal,winPct,opp_win_pct[team]]
                   json.dump(fileContent,file)
             if verbose:    
-                  print " passTotal: ",passTotal, " rushTotal: ", rushTotal, " defTotal: ", defTotal, " turnTotal: ", turnTotal
+                  print " passTotal: ",passTotal, " rushTotal: ", rushTotal, " defTotal: ", defTotal, " turnTotal: ", turnTotal, " opp win pct: ",opp_win_pct[team]
 	      
 else:
       for team in teamList:
@@ -102,17 +144,23 @@ else:
             #teamData = [fileContent[i] for i in range(0,6)]
             teamData = [fileContent[0], fileContent[1], fileContent[4], fileContent[5]]
             win_pct.update({team: fileContent[6]})
+            opp_win_pct.update({team: fileContent[7]})
             teams.update({team : teamData})
             if verbose:
                   print "team: ",team, " passTotal: ",teamData[0], " rushTotal: ", teamData[1], " defTotal: ", teamData[2], " turnTotal: ", teamData[3]
-                  print "win pct: ",fileContent[len(teamData)]
+                  print "win pct: ",fileContent[6], " opp win pct: ",fileContent[7]
 
 #transform dict to 2D array
 teamArr = []
 winPctArr = []
+oppWinPctArr = []
+
+#key here is to scale the winning percentage by the opponent's winning pct
 for team in teams:
-	teamArr.append(teams[team])
-	winPctArr.append(win_pct[team])
+      teamArr.append(teams[team])
+      adjustedWinPct = float(win_pct[team])*float(opp_win_pct[team])
+      winPctArr.append(adjustedWinPct)
+      oppWinPctArr.append(opp_win_pct[team])
 
 #heavy lifting done here
 #clf = Ridge(alpha=1.0, normalize="True")
