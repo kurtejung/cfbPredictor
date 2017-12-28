@@ -2,9 +2,13 @@
 ##http://scikit-learn.org/stable/modules/sgd.html
 
 from sklearn.linear_model import Ridge, SGDRegressor
+from sklearn import ensemble
 import urllib2, re, json, difflib
 from bs4 import BeautifulSoup
 from bs4 import Comment
+import matplotlib.pyplot as plt
+from scipy.optimize import curve_fit
+import numpy as np
 
 #### Global Parameters ###
 
@@ -17,9 +21,12 @@ doTest = False
 doPower5 = False
 doAll = True
 
-verbose = 2
+verbose = 1
 
 writeCSV = True
+
+doPlotting = True
+isGradientBoosted = False
 
 ###########################
 
@@ -39,6 +46,8 @@ teamListMWC = ['boise-state','wyoming','colorado-state','air-force','utah-state'
 teamListPACTwelve = ['stanford','washington','washington-state','oregon','california','oregon-state','southern-california','arizona-state','arizona','ucla','utah','colorado']
 teamListSEC = ['georgia','south-carolina','kentucky','missouri','florida','vanderbilt','tennessee','auburn','alabama','louisiana-state','mississippi-state','texas-am','mississippi','arkansas']
 teamListSunBelt = ['troy','arkansas-state','appalachian-state','georgia-state','louisiana-lafayette','louisiana-monroe','new-mexico-state','south-alabama','idaho','georgia-southern','coastal-carolina','texas-state']
+
+defunctList = {'alabama-birmingham':2016, 'coastal-carolina':2016}
 
 if doAll:
       doPower5 = True
@@ -71,7 +80,10 @@ if verbose > 1:
 if reloadData:
       
       #now get the opponent win percentage from another site
-      soup2 = BeautifulSoup(urllib2.urlopen("http://www.cpiratings.com/archives/{year}w15_table.html".format(year=year)).read(),'lxml')
+      if(year==2017):
+            soup2 = BeautifulSoup(urllib2.urlopen("http://www.cpiratings.com/archives/{year}w15_table.html".format(year=year)).read(),'lxml')
+      else:
+            soup2 = BeautifulSoup(urllib2.urlopen("http://www.cpiratings.com/archives/{year}post_table.html".format(year=year)).read(),'lxml')
       teamTable = soup2.find_all('table')[0]
             
       rows = teamTable.find_all('tr')
@@ -105,6 +117,9 @@ if reloadData:
       
       
       for team in teamList:
+            if(team in defunctList):
+                  if(defunctList[team]==year):
+                        continue
             if verbose:
                   print "team: ",team
             soup = BeautifulSoup(urllib2.urlopen("https://www.sports-reference.com/cfb/schools/{school}/{year}/gamelog/".format(school=team, year=year)).read(),'lxml')
@@ -114,6 +129,8 @@ if reloadData:
             firstDowns = int(parsed[len(parsed)-6].string)
             penalties = int(parsed[len(parsed)-4].string)
             turnTotal = int(parsed[len(parsed)-1].string)
+            totalGameString = parsed[len(parsed)-25].string
+            totalGames=int(re.split("(^\d+)",totalGameString)[1])
             
             record = unicode(soup.find_all("p")[2])
             pattern=re.compile("\d{1,2}")
@@ -130,35 +147,45 @@ if reloadData:
             defTotal = int(parsed[len(parsed)-18].string) + int(parsed[len(parsed)-15].string)
             turnTotal = int(parsed[len(parsed)-1].string) - turnTotal
             
-            teams.update({team : [passTotal, rushTotal, firstDowns, penalties, defTotal, turnTotal, opp_win_pct[team]]})
+            teamInfo = [passTotal, rushTotal, firstDowns, penalties, defTotal, turnTotal]
+            #for item in range(0,len(teamInfo)):
+                  #teamInfo[item] = float(teamInfo[item])/float(totalGames)
+            teams.update({team : teamInfo})
             
             if saveFiles:
                   file = open('{year}/{school}.txt'.format(year=year, school=team),'w')
-                  fileContent = [passTotal,rushTotal,firstDowns,penalties,defTotal,turnTotal,winPct,opp_win_pct[team]]
+                  fileContent = teamInfo
+                  fileContent.append(winPct)
+                  fileContent.append(opp_win_pct[team])
+                  #fileContent = [passTotal,rushTotal,firstDowns,penalties,defTotal,turnTotal,winPct,opp_win_pct[team]]
                   json.dump(fileContent,file)
-            if verbose:    
-                  print " passTotal: ",passTotal, " rushTotal: ", rushTotal, " defTotal: ", defTotal, " turnTotal: ", turnTotal, " opp win pct: ",opp_win_pct[team]
-	      
-else:
-      for team in teamList:
-            file = open('{year}/{school}.txt'.format(year=year, school=team),'r')
-            fileContent = json.load(file)
-            teamData = [fileContent[i] for i in range(0,7)]
-      #teamData = [fileContent[0], fileContent[1], fileContent[4], fileContent[5]]
-            win_pct.update({team: fileContent[6]})
-            opp_win_pct.update({team: fileContent[7]})
-            for i in [0,1,2,5]:
-                  teamData[i]*=(float(fileContent[7])**1.5)
-            teamData[4]/=(float(fileContent[7])/0.1)
-            teams.update({team : teamData})
             if verbose:
-                  print "team: ",team, " passTotal: ",teamData[0], " rushTotal: ", teamData[1], " defTotal: ", teamData[4], " turnTotal: ", teamData[5]
-                  print "win pct: ",fileContent[6], " opp win pct: ",fileContent[7]
+                  print "games played: ",totalGames
+                  print " passTotal: ",teamInfo[0], " rushTotal: ", teamInfo[1], " defTotal: ", teamInfo[4], " turnTotal: ", teamInfo[5], " opp win pct: ",opp_win_pct[team]
+	      
+for team in teamList:
+      if(team in defunctList):
+            if(defunctList[team]==year):
+                  continue
+      file = open('{year}/{school}.txt'.format(year=year, school=team),'r')
+      fileContent = json.load(file)
+      teamData = [fileContent[i] for i in range(0,6)]
+      #teamData = [fileContent[0], fileContent[1], fileContent[4], fileContent[5]]
+      win_pct.update({team: fileContent[6]})
+      opp_win_pct.update({team: fileContent[7]})
+      for i in [0,1,2,5]:
+            teamData[i]*=(float(fileContent[7])**0.3)
+      teamData[4]/=(float(fileContent[7])**0.1)
+      teams.update({team : teamData})
+      if verbose:
+            print "team: ",team, " passTotal: ",teamData[0], " rushTotal: ", teamData[1], " defTotal: ", teamData[4], " turnTotal: ", teamData[5]
+            print "win pct: ",fileContent[6], " opp win pct: ",fileContent[7]
 
 #transform dict to 2D array
 teamArr = []
 winPctArr = []
 oppWinPctArr = []
+input_names = ['passTotal','rushTotal','firstDowns','penalties','defTotal','turnTotal','oppWinPct']
 
 #key here is to scale the winning percentage by the opponent's winning pct
 for team in teams:
@@ -168,14 +195,32 @@ for team in teams:
       oppWinPctArr.append(opp_win_pct[team])
 
 #heavy lifting done here
-#clf = Ridge(alpha=1.0, normalize="True")
-clf = SGDRegressor(loss="squared_loss", penalty="l2")
+
+#do a simple ridge regression
+clf = Ridge(alpha=1.0, normalize="True")
+
+#do a stochastic gradient descent
+#clf = SGDRegressor(loss="squared_loss", penalty="l2", tol=None, max_iter=5)
+
+#do a gradient boosted tree
+params = {'n_estimators':50, 'max_depth':5, 'min_samples_split':5, 'learning_rate':0.05, 'loss':'ls'}
+if isGradientBoosted:
+      clf = ensemble.GradientBoostingRegressor(**params)
+
 from sklearn.preprocessing import StandardScaler
 scaler = StandardScaler()
 scaler.fit(teamArr)
 clf.fit(X=scaler.transform(teamArr), y=winPctArr)
 
+#predictPct = clf.predict(scaler.transform(teamArr))
 predictPct = clf.predict(scaler.transform(teamArr))
+
+from sklearn.model_selection import cross_val_score
+#from sklearn.model_selection import train_test_split
+model_scores = cross_val_score(clf, scaler.transform(teamArr), winPctArr, cv=5, verbose=0)
+print model_scores
+print "Accuracy: %0.2f (+/- %0.2f)" % (model_scores.mean(),model_scores.std())
+
 #iteam=0
 #for team in teams:
 #      print teamArr[iteam], " ", winPctArr[iteam], " ",predictPct[iteam]
@@ -188,6 +233,42 @@ for team in teams:
       sortedTeamDict.update({team : predictPct[iteam]})
       iteam+=1
 sortedTeams = sorted(sortedTeamDict, key=lambda key: sortedTeamDict[key], reverse=True)
+
+#pyplot
+if doPlotting:
+      
+      def func(x, a, b):
+            return (a * x) + b
+      np_winpctArr = np.array(winPctArr)
+      np_predictPct = np.array(predictPct)
+      popt, pcov = curve_fit(func,np_winpctArr,np_predictPct)
+      
+      plt.figure(figsize=(12,6))
+      plt.subplot(1,2,1)
+      plt.scatter(winPctArr,predictPct)
+      plt.plot(np_winpctArr, func(np_winpctArr, *popt), 'g--', label='linear fit')
+      plt.xlabel("Actual Win Pct")
+      plt.ylabel("Predicted Win Pct")
+      
+      if isGradientBoosted:
+            feature_importance = clf.feature_importances_
+            # make importances relative to max importance
+            feature_importance = 100.0 * (feature_importance / feature_importance.max())
+            sorted_idx = np.argsort(feature_importance)
+            pos = np.arange(sorted_idx.shape[0]) + .5
+            plt.subplot(1, 2, 2)
+            plt.barh(pos, feature_importance[sorted_idx], align='center')
+            print sorted_idx
+            feature_names = [x for _,x in sorted(zip(sorted_idx,input_names))]
+            plt.yticks(pos, feature_names)
+            plt.xlabel('Relative Importance')
+            plt.title('Variable Importance')
+      
+      plt.show()
+      
+      
+      
+      
 
 #print out
 iteam=0
